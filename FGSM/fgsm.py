@@ -13,7 +13,8 @@ import matplotlib.pyplot as plt
 # 设置不同扰动大小
 epsilons = [0, .05, .1, .15, .2, .25, .3]
 # 预训练模型
-pretrained_model = "./data/lenet_mnist_model.pth"
+# pretrained_model = "./data/lenet_mnist_model.pth"
+pretrained_model = "./data/mnist_cnn.pt"
 # 是否使用cuda
 use_cuda = True
 
@@ -40,9 +41,8 @@ class Net(nn.Module):
 
 # 声明 MNIST 测试数据集何数据加载
 test_loader = torch.utils.data.DataLoader(
-    datasets.MNIST('../data_row', train=False, download=True, transform=transforms.Compose([
-        transforms.ToTensor(),
-    ])),
+    datasets.MNIST('../data_row', train=False, download=True, 
+                   transform=transforms.Compose([transforms.ToTensor(),])),
     batch_size=1, shuffle=True)
 
 # 定义我们正在使用的设备
