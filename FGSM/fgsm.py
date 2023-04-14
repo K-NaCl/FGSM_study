@@ -1,13 +1,9 @@
-# 这句话的作用:即使是在Python2.7版本的环境下，print功能的使用格式也遵循Python3.x版本中的加括号的形式
-from __future__ import print_function
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
 from torchvision import datasets, transforms
 import numpy as np
 import matplotlib.pyplot as plt
-
-# https://pytorch123.com/FourSection/AdversarialExampleGene/
 
 
 # 设置不同扰动大小
@@ -18,6 +14,12 @@ pretrained_model = "./data/mnist_cnn.pt"
 # 是否使用cuda
 use_cuda = True
 
+
+def set_random_seed(seed=0):
+    np.random.seed(seed)
+    torch.manual_seed(seed)
+    if torch.cuda.is_available():
+        torch.cuda.manual_seed(seed)
 
 # 定义LeNet模型
 class Net(nn.Module):
@@ -38,8 +40,10 @@ class Net(nn.Module):
         x = self.fc2(x)
         return F.log_softmax(x, dim=1)
 
+# 设置种子，可复现
+set_random_seed()
 
-# 声明 MNIST 测试数据集何数据加载
+# 声明 MNIST 测试数据集合数据加载
 test_loader = torch.utils.data.DataLoader(
     datasets.MNIST('../data_row', train=False, download=True, 
                    transform=transforms.Compose([transforms.ToTensor(),])),
@@ -70,6 +74,33 @@ def fgsm_attack(image, epsilon, data_grad):
     # 返回被扰动的图像
     return perturbed_image
 
+# I-FGSM算法
+def i_fgsm(self, x, y, targeted=False, eps=0.03, alpha=1, iteration=1, x_val_min=-1, x_val_max=1):
+    x_adv = x.data
+    x_adv.requires_grad = True
+    for i in range(iteration):
+        h_adv = self.net(x_adv)
+        if targeted:
+            cost = self.criterion(h_adv, y)
+        else:
+            cost = -self.criterion(h_adv, y)
+
+        self.net.zero_grad()
+        if x_adv.grad is not None:
+            x_adv.grad.data.fill_(0)
+        cost.backward()
+
+        x_adv.grad.sign_()
+        x_adv = x_adv - alpha*x_adv.grad
+        x_adv = torch.where(x_adv > x+eps, x+eps, x_adv)
+        x_adv = torch.where(x_adv < x-eps, x-eps, x_adv)
+        x_adv = torch.clamp(x_adv, x_val_min, x_val_max)
+        x_adv = torch.tensor(x_adv.data, requires_grad=True)
+
+    h = self.net(x)
+    h_adv = self.net(x_adv)
+
+    return x_adv, h_adv, h
 
 def test(model, device, test_loader, epsilon):
     # 精度计数器
